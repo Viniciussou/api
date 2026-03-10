@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import { randomUUID } from 'crypto'
 import { createLogger } from './logger.js'
 import { config } from './config.js'
 import { 
@@ -106,7 +107,7 @@ app.post('/api/sessions/connect', async (req, res) => {
     }
 
     // Generate a session ID
-    const sessionId = require('crypto').randomUUID()
+    const sessionId = randomUUID()
 
     // Initialize the session
     await initSession(sessionId, user_id)
