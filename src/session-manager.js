@@ -1,7 +1,6 @@
 import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
-  makeInMemoryStore,
   fetchLatestBaileysVersion
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
@@ -69,7 +68,6 @@ export async function initSession(sessionId, userId) {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath)
 
     // Create store
-    const store = makeInMemoryStore({})
     sessionStores.set(sessionId, store)
 
     // Get latest Baileys version
