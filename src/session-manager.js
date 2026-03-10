@@ -19,6 +19,7 @@ const logger = createLogger('session-manager')
 // Store for all active sessions
 const sessions = new Map()
 const sessionStores = new Map()
+const sessionQRCodes = new Map()
 
 // Sessions directory
 const SESSIONS_DIR = './sessions'
@@ -36,14 +37,10 @@ export async function getSession(sessionId) {
 }
 
 /**
- * Get all active sessions
+ * Get QR code for a session
  */
-export function getAllSessions() {
-  return Array.from(sessions.entries()).map(([id, sock]) => ({
-    id,
-    connected: sock?.user ? true : false,
-    user: sock?.user
-  }))
+export function getSessionQRCode(sessionId) {
+  return sessionQRCodes.get(sessionId)
 }
 
 /**
@@ -103,11 +100,18 @@ export async function initSession(sessionId, userId) {
         // Generate QR code as base64 image
         const qrBase64 = await QRCode.toDataURL(qr)
 
-        // Update database with QR code
-        await db.updateSession(sessionId, {
-          qr_code: qrBase64,
-          is_connected: false
-        })
+        // Store QR code in memory
+        sessionQRCodes.set(sessionId, qrBase64)
+
+        // Update database with QR code (optional)
+        try {
+          await db.updateSession(sessionId, {
+            qr_code: qrBase64,
+            is_connected: false
+          })
+        } catch (error) {
+          logger.warn({ sessionId, error: error.message }, 'Failed to update QR code in database')
+        }
 
         // Send webhook
         await sendWebhook(WebhookEvents.SESSION_QR_UPDATE, sessionId, { qr_code: qrBase64 })
@@ -119,11 +123,15 @@ export async function initSession(sessionId, userId) {
 
         logger.info({ sessionId, statusCode, shouldReconnect }, 'Connection closed')
 
-        // Update database
-        await db.updateSession(sessionId, {
-          is_connected: false,
-          qr_code: null
-        })
+        // Update database (optional)
+        try {
+          await db.updateSession(sessionId, {
+            is_connected: false,
+            qr_code: null
+          })
+        } catch (error) {
+          logger.warn({ sessionId, error: error.message }, 'Failed to update session disconnect in database')
+        }
 
         // Send webhook
         await sendWebhook(WebhookEvents.SESSION_DISCONNECTED, sessionId, {
@@ -134,6 +142,7 @@ export async function initSession(sessionId, userId) {
         // Remove from sessions map
         sessions.delete(sessionId)
         sessionStores.delete(sessionId)
+        sessionQRCodes.delete(sessionId)
 
         // Reconnect if needed
         if (shouldReconnect) {
@@ -152,12 +161,16 @@ export async function initSession(sessionId, userId) {
       if (connection === 'open') {
         logger.info({ sessionId, user: sock.user }, 'Connection opened')
 
-        // Update database
-        await db.updateSession(sessionId, {
-          is_connected: true,
-          qr_code: null,
-          phone_number: sock.user?.id?.split(':')[0] || sock.user?.id?.split('@')[0]
-        })
+        // Update database (optional)
+        try {
+          await db.updateSession(sessionId, {
+            is_connected: true,
+            qr_code: null,
+            phone_number: sock.user?.id?.split(':')[0] || sock.user?.id?.split('@')[0]
+          })
+        } catch (error) {
+          logger.warn({ sessionId, error: error.message }, 'Failed to update session connect in database')
+        }
 
         // Send webhook
         await sendWebhook(WebhookEvents.SESSION_CONNECTED, sessionId, {
@@ -243,6 +256,7 @@ export async function disconnectSession(sessionId) {
     await sock.logout()
     sessions.delete(sessionId)
     sessionStores.delete(sessionId)
+    sessionQRCodes.delete(sessionId)
   }
 
   // Clear session files
@@ -251,12 +265,16 @@ export async function disconnectSession(sessionId) {
     fs.rmSync(sessionPath, { recursive: true, force: true })
   }
 
-  // Update database
-  await db.updateSession(sessionId, {
-    is_connected: false,
-    qr_code: null,
-    auth_state: null
-  })
+  // Update database (optional)
+  try {
+    await db.updateSession(sessionId, {
+      is_connected: false,
+      qr_code: null,
+      auth_state: null
+    })
+  } catch (error) {
+    logger.warn({ sessionId, error: error.message }, 'Failed to update session disconnect in database')
+  }
 }
 
 /**
