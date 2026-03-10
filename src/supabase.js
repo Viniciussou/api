@@ -27,6 +27,34 @@ export const db = {
     return data
   },
 
+  async getSessionByPhoneNumber(phoneNumber, userId) {
+    const { data, error } = await supabase
+      .from('whatsapp_sessions')
+      .select('*')
+      .eq('phone_number', phoneNumber)
+      .eq('user_id', userId)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') throw error // PGRST116 = not found
+    return data
+  },
+
+  async createSession(phoneNumber, userId, sessionName = null) {
+    const { data, error } = await supabase
+      .from('whatsapp_sessions')
+      .insert({
+        phone_number: phoneNumber,
+        user_id: userId || '550e8400-e29b-41d4-a716-446655440000', // Default user UUID
+        session_name: sessionName,
+        is_connected: false
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
   async updateSession(sessionId, updates) {
     const { data, error } = await supabase
       .from('whatsapp_sessions')
@@ -43,7 +71,7 @@ export const db = {
     const { data, error } = await supabase
       .from('whatsapp_sessions')
       .select('*')
-      .in('status', ['connected', 'connecting'])
+      .eq('is_connected', true)
     
     if (error) throw error
     return data || []

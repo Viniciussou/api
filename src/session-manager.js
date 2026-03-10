@@ -106,7 +106,7 @@ export async function initSession(sessionId, userId) {
         // Update database with QR code
         await db.updateSession(sessionId, {
           qr_code: qrBase64,
-          status: 'connecting'
+          is_connected: false
         })
 
         // Send webhook
@@ -121,7 +121,7 @@ export async function initSession(sessionId, userId) {
 
         // Update database
         await db.updateSession(sessionId, {
-          status: statusCode === DisconnectReason.loggedOut ? 'disconnected' : 'connecting',
+          is_connected: false,
           qr_code: null
         })
 
@@ -154,7 +154,7 @@ export async function initSession(sessionId, userId) {
 
         // Update database
         await db.updateSession(sessionId, {
-          status: 'connected',
+          is_connected: true,
           qr_code: null,
           phone_number: sock.user?.id?.split(':')[0] || sock.user?.id?.split('@')[0]
         })
@@ -253,7 +253,7 @@ export async function disconnectSession(sessionId) {
 
   // Update database
   await db.updateSession(sessionId, {
-    status: 'disconnected',
+    is_connected: false,
     qr_code: null,
     auth_state: null
   })
