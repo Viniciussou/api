@@ -58,7 +58,7 @@ export async function initSession(sessionId, userId) {
   }
 
   const sessionPath = path.join(SESSIONS_DIR, sessionId)
-  
+
   // Create session directory if it doesn't exist
   if (!fs.existsSync(sessionPath)) {
     fs.mkdirSync(sessionPath, { recursive: true })
@@ -67,14 +67,14 @@ export async function initSession(sessionId, userId) {
   try {
     // Get auth state
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath)
-    
+
     // Create store
     const store = makeInMemoryStore({})
     sessionStores.set(sessionId, store)
 
     // Get latest Baileys version
     const { version } = await fetchLatestBaileysVersion()
-    
+
     // Create socket
     const sock = makeWASocket({
       version,
@@ -102,34 +102,34 @@ export async function initSession(sessionId, userId) {
 
       if (qr) {
         logger.info({ sessionId }, 'QR code received')
-        
+
         // Generate QR code as base64 image
         const qrBase64 = await QRCode.toDataURL(qr)
-        
+
         // Update database with QR code
-        await db.updateSession(sessionId, { 
-          qr_code: qrBase64, 
-          status: 'connecting' 
+        await db.updateSession(sessionId, {
+          qr_code: qrBase64,
+          status: 'connecting'
         })
-        
+
         // Send webhook
         await sendWebhook(WebhookEvents.SESSION_QR_UPDATE, sessionId, { qr_code: qrBase64 })
       }
 
       if (connection === 'close') {
-        const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
+        const statusCode = lastDisconnect?.error?.output?.statusCode || 0
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut
 
         logger.info({ sessionId, statusCode, shouldReconnect }, 'Connection closed')
 
         // Update database
-        await db.updateSession(sessionId, { 
+        await db.updateSession(sessionId, {
           status: statusCode === DisconnectReason.loggedOut ? 'disconnected' : 'connecting',
           qr_code: null
         })
 
         // Send webhook
-        await sendWebhook(WebhookEvents.SESSION_DISCONNECTED, sessionId, { 
+        await sendWebhook(WebhookEvents.SESSION_DISCONNECTED, sessionId, {
           reason: statusCode,
           will_reconnect: shouldReconnect
         })
@@ -154,9 +154,9 @@ export async function initSession(sessionId, userId) {
 
       if (connection === 'open') {
         logger.info({ sessionId, user: sock.user }, 'Connection opened')
-        
+
         // Update database
-        await db.updateSession(sessionId, { 
+        await db.updateSession(sessionId, {
           status: 'connected',
           qr_code: null,
           phone_number: sock.user?.id?.split(':')[0] || sock.user?.id?.split('@')[0]
@@ -255,7 +255,7 @@ export async function disconnectSession(sessionId) {
   }
 
   // Update database
-  await db.updateSession(sessionId, { 
+  await db.updateSession(sessionId, {
     status: 'disconnected',
     qr_code: null,
     auth_state: null
@@ -273,7 +273,7 @@ export async function sendMessage(sessionId, to, content, options = {}) {
 
   try {
     const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`
-    
+
     let messageContent
     if (options.mediaUrl) {
       // Handle media messages
@@ -288,7 +288,7 @@ export async function sendMessage(sessionId, to, content, options = {}) {
     }
 
     const result = await sock.sendMessage(jid, messageContent)
-    
+
     logger.info({ sessionId, to: jid, messageId: result.key.id }, 'Message sent')
 
     // Increment daily message count
@@ -346,7 +346,7 @@ export async function restoreSessions() {
 
   try {
     const activeSessions = await db.getAllActiveSessions()
-    
+
     for (const session of activeSessions) {
       try {
         await initSession(session.id, session.user_id)
