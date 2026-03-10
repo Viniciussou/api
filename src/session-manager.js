@@ -1,7 +1,9 @@
-import makeWASocket, {
+import {
+  makeWASocket,
   DisconnectReason,
   useMultiFileAuthState,
-  fetchLatestBaileysVersion
+  fetchLatestBaileysVersion,
+  makeInMemoryStore
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import QRCode from 'qrcode'
@@ -68,6 +70,7 @@ export async function initSession(sessionId, userId) {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath)
 
     // Create store
+    const store = makeInMemoryStore({})
     sessionStores.set(sessionId, store)
 
     // Get latest Baileys version
@@ -84,11 +87,7 @@ export async function initSession(sessionId, userId) {
       qrTimeout: 60000,
       defaultQueryTimeoutMs: 60000,
       markOnlineOnConnect: false,
-      syncFullHistory: false,
-      getMessage: async (key) => {
-        const msg = await store.loadMessage(key.remoteJid, key.id)
-        return msg?.message || undefined
-      }
+      syncFullHistory: false
     })
 
     // Bind store to socket
