@@ -21,7 +21,6 @@ export const db = {
       .from('whatsapp_sessions')
       .select('*')
       .eq('id', sessionId)
-      .single()
     
     if (error) throw error
     return data
@@ -33,7 +32,6 @@ export const db = {
       .select('*')
       .eq('phone_number', phoneNumber)
       .eq('user_id', userId)
-      .single()
     
     if (error && error.code !== 'PGRST116') throw error // PGRST116 = not found
     return data
@@ -82,7 +80,6 @@ export const db = {
       .from('whatsapp_sessions')
       .select('daily_message_count')
       .eq('id', sessionId)
-      .single()
 
     await supabase
       .from('whatsapp_sessions')
@@ -140,7 +137,6 @@ export const db = {
       .from('messages')
       .insert(message)
       .select()
-      .single()
     
     if (error) throw error
     return data
@@ -199,7 +195,6 @@ export const db = {
       .eq('is_active', true)
       .order('created_at', { ascending: true })
       .limit(1)
-      .single()
 
     return data || {
       messages_per_session_per_day: 30,
