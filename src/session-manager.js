@@ -105,10 +105,17 @@ export async function initSession(sessionId, userId) {
 
         // Update database with QR code (optional)
         try {
-          await db.updateSession(sessionId, {
-            qr_code: qrBase64,
-            is_connected: false
-          })
+          // First check if session exists
+          const existingSession = await db.getSession(sessionId).catch(() => null)
+          
+          if (existingSession) {
+            await db.updateSession(sessionId, {
+              qr_code: qrBase64,
+              is_connected: false
+            })
+          } else {
+            logger.debug({ sessionId }, 'Session does not exist yet, skipping DB update for QR code')
+          }
         } catch (error) {
           logger.warn({ sessionId, error: error.message }, 'Failed to update QR code in database')
         }
@@ -125,10 +132,13 @@ export async function initSession(sessionId, userId) {
 
         // Update database (optional)
         try {
-          await db.updateSession(sessionId, {
-            is_connected: false,
-            qr_code: null
-          })
+          const existingSession = await db.getSession(sessionId).catch(() => null)
+          if (existingSession) {
+            await db.updateSession(sessionId, {
+              is_connected: false,
+              qr_code: null
+            })
+          }
         } catch (error) {
           logger.warn({ sessionId, error: error.message }, 'Failed to update session disconnect in database')
         }
@@ -163,11 +173,14 @@ export async function initSession(sessionId, userId) {
 
         // Update database (optional)
         try {
-          await db.updateSession(sessionId, {
-            is_connected: true,
-            qr_code: null,
-            phone_number: sock.user?.id?.split(':')[0] || sock.user?.id?.split('@')[0]
-          })
+          const existingSession = await db.getSession(sessionId).catch(() => null)
+          if (existingSession) {
+            await db.updateSession(sessionId, {
+              is_connected: true,
+              qr_code: null,
+              phone_number: sock.user?.id?.split(':')[0] || sock.user?.id?.split('@')[0]
+            })
+          }
         } catch (error) {
           logger.warn({ sessionId, error: error.message }, 'Failed to update session connect in database')
         }

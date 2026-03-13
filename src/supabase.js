@@ -49,7 +49,7 @@ export const db = {
         is_connected: false
       })
       .select()
-      .single()
+      .maybeSingle()
     
     if (error) throw error
     return data
@@ -61,7 +61,7 @@ export const db = {
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', sessionId)
       .select()
-      .single()
+      .maybeSingle()
     
     if (error) throw error
     return data
@@ -163,7 +163,7 @@ export const db = {
       .select('*')
       .eq('user_id', userId)
       .eq('phone', phone)
-      .single()
+      .maybeSingle()
 
     if (existing) {
       // Update last contact time
@@ -184,7 +184,7 @@ export const db = {
         status: 'active'
       })
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw error
     return newContact
