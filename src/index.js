@@ -8,13 +8,18 @@ import { startQueueProcessor, stopQueueProcessor } from './queue-processor.js'
 async function gracefulShutdown(signal) {
   logger.info({ signal }, 'Received shutdown signal')
   
-  stopQueueProcessor()
-  
-  // Give time for cleanup
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  
-  logger.info('Shutdown complete')
-  process.exit(0)
+  try {
+    stopQueueProcessor()
+    
+    // Give time for cleanup
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    logger.info('Shutdown complete')
+  } catch (error) {
+    logger.error({ error: error.message }, 'Error during shutdown')
+  } finally {
+    process.exit(0)
+  }
 }
 
 // Handle shutdown signals
@@ -28,26 +33,28 @@ process.on('uncaughtException', (error) => {
 })
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error({ reason, promise }, 'Unhandled promise rejection')
+  logger.error({ reason: String(reason), promise: String(promise) }, 'Unhandled promise rejection')
 })
 
 // Start server
 async function start() {
   try {
-    logger.info('Starting Baileys WhatsApp Server...')
+    logger.info({ port: config.port, environment: process.env.NODE_ENV }, 'Starting Baileys WhatsApp Server...')
     
     // Start HTTP server
-    app.listen(config.port, () => {
-      logger.info({ port: config.port }, 'HTTP server started')
+    const server = app.listen(config.port, () => {
+      logger.info({ port: config.port }, 'HTTP server started successfully')
     })
 
     // Restore existing sessions
+    logger.info('Attempting to restore previous sessions...')
     await restoreSessions()
 
     // Start queue processor
+    logger.info('Starting message queue processor...')
     startQueueProcessor()
 
-    logger.info('Server started successfully')
+    logger.info('Server startup complete - Ready to handle WhatsApp sessions')
   } catch (error) {
     logger.fatal({ error: error.message }, 'Failed to start server')
     process.exit(1)

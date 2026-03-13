@@ -18,11 +18,11 @@ export async function sendWebhook(event, sessionId, data) {
   }
 
   try {
-    const response = await fetch(`${config.webhookUrl}/api/webhook/baileys`, {
+    const response = await fetch(config.webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-webhook-secret': config.webhookSecret
+        'Authorization': `Bearer ${config.webhookSecret}`
       },
       body: JSON.stringify(payload)
     })

@@ -76,18 +76,25 @@ export const db = {
   },
 
   async incrementDailyMessageCount(sessionId) {
-    const { data: session } = await supabase
+    const { data: session, error: fetchError } = await supabase
       .from('whatsapp_sessions')
       .select('daily_message_count')
       .eq('id', sessionId)
+      .maybeSingle()
 
-    await supabase
-      .from("whatsapp_sessions")
+    if (fetchError) throw fetchError
+
+    const newCount = (session?.daily_message_count || 0) + 1
+
+    const { error: updateError } = await supabase
+      .from('whatsapp_sessions')
       .update({
-        status: "connected",
-        qr_code: null
+        daily_message_count: newCount
       })
-      .eq("session_id", sessionId)
+      .eq('id', sessionId)
+
+    if (updateError) throw updateError
+    return newCount
   },
 
   // Queue

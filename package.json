@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "echo \"No tests configured yet\"",
+    "lint": "echo \"No linter configured yet\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

@@ -24,9 +24,9 @@ app.use(express.json())
 // Auth middleware
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization
-  const token = authHeader?.replace('Bearer ', '')
+  const token = authHeader?.split(' ')[1]
 
-  if (token !== config.serverSecret) {
+  if (!token || token !== config.serverSecret) {
     return res.status(401).json({ error: 'Unauthorized', message: 'Invalid or missing authorization token' })
   }
 
@@ -97,50 +97,27 @@ app.get('/api/sessions/:id/qr', (req, res) => {
 })
 
 // Initialize/Connect session
-app.post('/api/sessions/init', async (req, res) => {
+app.post('/api/connect', async (req, res) => {
   try {
-    const { session_id, user_id } = req.body
+    const { session_id, user_id, phone_number } = req.body
 
-    if (!session_id || !user_id) {
-      return res.status(400).json({ error: 'Validation error', message: 'session_id and user_id are required' })
+    if (!session_id || !user_id || !phone_number) {
+      return res.status(400).json({ error: 'Validation error', message: 'session_id, user_id, and phone_number are required' })
     }
 
     await initSession(session_id, user_id)
-    
-    res.json({ success: true, message: 'Session initialization started' })
-  } catch (error) {
-    logger.error({ error: error.message }, 'Error initializing session')
-    res.status(500).json({ error: 'Server error', message: error.message })
-  }
-})
-
-// Connect session (generate QR)
-app.post('/api/sessions/connect', async (req, res) => {
-  try {
-    const { user_id, phone_number } = req.body
-
-    if (!user_id || !phone_number) {
-      return res.status(400).json({ error: 'Validation error', message: 'user_id and phone_number are required' })
-    }
-
-    // Generate a session ID
-    const sessionId = randomUUID()
-
-    // Initialize the session
-    await initSession(sessionId, user_id)
     
     // Wait a bit for QR to be generated
     await new Promise(resolve => setTimeout(resolve, 2000))
     
     // Get QR code from memory
-    const qrCode = getSessionQRCode(sessionId)
+    const qrCode = getSessionQRCode(session_id)
     
-    // For now, return mock data since DB is not working
     res.json({ 
       success: true, 
       data: {
-        session_id: sessionId,
-        status: qrCode ? 'connecting' : 'connecting',
+        session_id,
+        status: 'connecting',
         qr_code: qrCode || null
       }
     })
@@ -151,11 +128,15 @@ app.post('/api/sessions/connect', async (req, res) => {
 })
 
 // Disconnect session
-app.post('/api/sessions/:id/disconnect', async (req, res) => {
+app.post('/api/disconnect', async (req, res) => {
   try {
-    const { id } = req.params
+    const { session_id } = req.body
+
+    if (!session_id) {
+      return res.status(400).json({ error: 'Validation error', message: 'session_id is required' })
+    }
     
-    await disconnectSession(id)
+    await disconnectSession(session_id)
     
     res.json({ success: true, message: 'Session disconnected' })
   } catch (error) {
@@ -169,7 +150,7 @@ app.post('/api/sessions/:id/disconnect', async (req, res) => {
 // ==========================================
 
 // Send a single message
-app.post('/api/messages/send', async (req, res) => {
+app.post('/api/send', async (req, res) => {
   try {
     const { session_id, to, message, media_url, message_db_id } = req.body
 
@@ -209,13 +190,32 @@ app.post('/api/messages/send', async (req, res) => {
 // Dispatch Routes
 // ==========================================
 
-// Trigger dispatch processing
-app.post('/api/dispatch/process', (req, res) => {
-  const { user_id } = req.body
-  
-  triggerProcessing(user_id)
-  
-  res.json({ success: true, message: 'Dispatch processing triggered' })
+// Bulk send messages
+app.post('/api/send-bulk', (req, res) => {
+  try {
+    const { session_ids, contact_ids, user_id } = req.body
+
+    if (!session_ids || !contact_ids || !user_id) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'session_ids, contact_ids, and user_id are required'
+      })
+    }
+
+    triggerProcessing(user_id)
+    
+    res.json({ 
+      success: true, 
+      message: 'Bulk dispatch processing triggered',
+      data: {
+        session_ids: session_ids.length,
+        contact_ids: contact_ids.length
+      }
+    })
+  } catch (error) {
+    logger.error({ error: error.message }, 'Error processing bulk send')
+    res.status(500).json({ error: 'Server error', message: error.message })
+  }
 })
 
 // ==========================================
@@ -285,8 +285,19 @@ app.get('/api/profile-picture', async (req, res) => {
   }
 })
 
-// Error handler
+// Error handler (must be last)
 app.use((err, req, res, next) => {
-  logger.error({ error: err.message, stack: err.stack }, 'Unhandled error')
-  res.status(500).json({ error: 'Server error', message: 'An unexpected error occurred' })
+  logger.error({ 
+    error: err.message, 
+    stack: err.stack,
+    url: req.url,
+    method: req.method 
+  }, 'Unhandled error')
+  
+  res.status(err.status || 500).json({ 
+    error: 'Server error', 
+    message: process.env.NODE_ENV === 'production' 
+      ? 'An unexpected error occurred' 
+      : err.message 
+  })
 })
