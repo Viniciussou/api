@@ -21,7 +21,7 @@ export const db = {
       .from('whatsapp_sessions')
       .select('*')
       .eq('id', sessionId)
-    
+
     if (error) throw error
     return data
   },
@@ -32,7 +32,7 @@ export const db = {
       .select('*')
       .eq('phone_number', phoneNumber)
       .eq('user_id', userId)
-    
+
     if (error && error.code !== 'PGRST116') throw error // PGRST116 = not found
     return data
   },
@@ -48,7 +48,7 @@ export const db = {
       })
       .select()
       .maybeSingle()
-    
+
     if (error) throw error
     return data
   },
@@ -60,7 +60,7 @@ export const db = {
       .eq('id', sessionId)
       .select()
       .maybeSingle()
-    
+
     if (error) throw error
     return data
   },
@@ -70,7 +70,7 @@ export const db = {
       .from('whatsapp_sessions')
       .select('*')
       .eq('is_connected', true)
-    
+
     if (error) throw error
     return data || []
   },
@@ -82,12 +82,12 @@ export const db = {
       .eq('id', sessionId)
 
     await supabase
-      .from('whatsapp_sessions')
-      .update({ 
-        daily_message_count: (session?.daily_message_count || 0) + 1,
-        last_message_at: new Date().toISOString()
+      .from("whatsapp_sessions")
+      .update({
+        status: "connected",
+        qr_code: null
       })
-      .eq('id', sessionId)
+      .eq("session_id", sessionId)
   },
 
   // Queue
@@ -119,7 +119,7 @@ export const db = {
       .from('dispatch_queue')
       .update(updates)
       .eq('id', queueId)
-    
+
     if (error) throw error
   },
 
@@ -127,7 +127,7 @@ export const db = {
     const { error } = await supabase
       .from('dispatch_logs')
       .insert(log)
-    
+
     if (error) throw error
   },
 
@@ -137,7 +137,7 @@ export const db = {
       .from('messages')
       .insert(message)
       .select()
-    
+
     if (error) throw error
     return data
   },
@@ -147,7 +147,7 @@ export const db = {
       .from('messages')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', messageId)
-    
+
     if (error) throw error
   },
 
